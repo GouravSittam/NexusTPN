@@ -21,14 +21,13 @@ systemctl enable --now nginx
 # Install NRPE + nagios-plugins (client)
 apt-get install -y nagios-nrpe-server nagios-plugins
 
-# Configure NRPE to allow Nagios server (we'll allow 10.0.1.0/24 and refine)
-sed -i "s/^allowed_hosts=.*/allowed_hosts=127.0.0.1,${NAGIOS_SERVER_IP:-127.0.0.1}/" /etc/nagios/nrpe.cfg || true
+# Configure NRPE to allow Nagios server
+sed -i "s/^allowed_hosts=.*/allowed_hosts=127.0.0.1,${nagios_server_ip}/" /etc/nagios/nrpe.cfg || true
 systemctl restart nagios-nrpe-server || true
 
 # Fetch puppet manifests from S3 and apply (this example fetches a site.pp)
-BUCKET="${s3_bucket}"
 mkdir -p /opt/puppet-manifests
-aws s3 cp "s3://${BUCKET}/puppet/manifests/site.pp" /opt/puppet-manifests/site.pp --region ${AWS_DEFAULT_REGION:-us-east-1}
+aws s3 cp "s3://${s3_bucket}/puppet/manifests/site.pp" /opt/puppet-manifests/site.pp --region ${aws_region}
 
 # Place a simple puppet apply wrapper
 cat > /opt/puppet-manifests/run.sh <<'EOF'
@@ -41,10 +40,9 @@ chmod +x /opt/puppet-manifests/run.sh
 /opt/puppet-manifests/run.sh || true
 
 # deploy React build from S3 prefix if exists
-REACT_PREFIX="${s3_prefix}"
-if aws s3 ls "s3://${BUCKET}/${REACT_PREFIX}/" 2>/dev/null; then
+if aws s3 ls "s3://${s3_bucket}/${s3_prefix}/" 2>/dev/null; then
   mkdir -p /var/www/react
-  aws s3 sync "s3://${BUCKET}/${REACT_PREFIX}/" /var/www/react --region ${AWS_DEFAULT_REGION:-us-east-1}
+  aws s3 sync "s3://${s3_bucket}/${s3_prefix}/" /var/www/react --region ${aws_region}
   # nginx site config
   cat > /etc/nginx/sites-available/react <<'NGINX'
 server {

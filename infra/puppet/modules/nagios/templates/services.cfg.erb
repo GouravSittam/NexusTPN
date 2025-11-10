@@ -1,0 +1,63 @@
+# Nagios Service Configuration
+# This file is managed by Puppet
+
+define service {
+    use                     generic-service
+    host_name               app-server-0
+    service_description     HTTP
+    check_command           check_http
+    max_check_attempts      3
+    check_interval          5
+    retry_interval          1
+    check_period            24x7
+    notification_interval   30
+    notification_period     24x7
+    contacts                nagiosadmin
+    register                1
+}
+
+define service {
+    use                     generic-service
+    host_name               app-server-0
+    service_description     NRPE
+    check_command           check_nrpe!check_load
+    max_check_attempts      3
+    check_interval          5
+    retry_interval          1
+    check_period            24x7
+    notification_interval   30
+    notification_period     24x7
+    contacts                nagiosadmin
+    register                1
+}
+
+define service {
+    use                     generic-service
+    host_name               app-server-0
+    service_description     High CPU Check
+    check_command           check_nrpe!check_high_cpu
+    max_check_attempts      3
+    check_interval          5
+    retry_interval          1
+    check_period            24x7
+    notification_interval   30
+    notification_period     24x7
+    contacts                nagiosadmin
+    register                1
+}
+
+define service {
+    use                     generic-service
+    host_name               app-server-0
+    service_description     Disk Usage
+    check_command           check_nrpe!check_disk
+    max_check_attempts      3
+    check_interval          5
+    retry_interval          1
+    check_period            24x7
+    notification_interval   30
+    notification_period     24x7
+    contacts                nagiosadmin
+    register                1
+}
+

@@ -16,9 +16,8 @@ apt-get update -y
 apt-get install -y puppet
 
 # fetch puppet manifests and apply
-aws s3 cp "s3://${PUCKET_PLACEHOLDER}/puppet/manifests/site.pp" /opt/puppet-manifests/site.pp --region ${AWS_DEFAULT_REGION:-us-east-1} || true
-
-# FIXME: The puppet bucket name will be templated by Terraform - ensure placeholder replaced by templatefile or upload manually.
+mkdir -p /opt/puppet-manifests
+aws s3 cp "s3://${s3_bucket}/puppet/manifests/site.pp" /opt/puppet-manifests/site.pp --region ${aws_region} || true
 
 # run puppet apply if manifest is present
 if [ -f /opt/puppet-manifests/site.pp ]; then

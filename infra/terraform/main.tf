@@ -1,4 +1,4 @@
-# ---------- data: latest Ubuntu LTS 22.04 ----------
+# ---------- data: latest Ubuntu LTS 22.04 (fallback if ami_id not provided) ----------
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"] # Canonical
@@ -6,6 +6,11 @@ data "aws_ami" "ubuntu" {
     name   = "name"
     values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"]
   }
+}
+
+# Local value for AMI ID (use provided or fallback to data source)
+locals {
+  ami_id = var.ami_id != "" ? var.ami_id : data.aws_ami.ubuntu.id
 }
 
 # ---------- VPC ----------
@@ -45,7 +50,7 @@ resource "aws_route_table_association" "a" {
 # ---------- Security groups ----------
 # Nagios SG (allow SSH from admin, allow http checks to app servers, allow NRPE to access app servers)
 resource "aws_security_group" "nagios_sg" {
-  name        = "sg-nagios"
+  name        = "nagios-sg"
   description = "Nagios server SG"
   vpc_id      = aws_vpc.main.id
 
@@ -53,6 +58,14 @@ resource "aws_security_group" "nagios_sg" {
     description = "SSH from admin"
     from_port   = 22
     to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.admin_cidr]
+  }
+
+  ingress {
+    description = "Nagios Web UI"
+    from_port   = 80
+    to_port     = 80
     protocol    = "tcp"
     cidr_blocks = [var.admin_cidr]
   }
@@ -69,7 +82,7 @@ resource "aws_security_group" "nagios_sg" {
 
 # App SG (minimal: allow HTTP from internet, SSH from admin, NRPE only from Nagios SG)
 resource "aws_security_group" "app_sg" {
-  name        = "sg-app"
+  name        = "app-sg"
   description = "App servers SG"
   vpc_id      = aws_vpc.main.id
 
@@ -152,19 +165,24 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 }
 
 # ---------- S3 bucket for puppet manifests and react build ----------
-resource "aws_s3_bucket" "puppet_bucket" {
-  bucket = "${replace(var.aws_region, "-", "")}-infra-puppet-${random_id.bucket_id.hex}"
-  acl    = "private"
-  force_destroy = true
-  tags = { Name = "infra-artifacts" }
-}
-
 resource "random_id" "bucket_id" {
   byte_length = 4
 }
 
+resource "aws_s3_bucket" "puppet_bucket" {
+  bucket = "${replace(var.aws_region, "-", "")}-infra-puppet-${random_id.bucket_id.hex}"
+  force_destroy = true
+  tags = { Name = "infra-artifacts" }
+}
+
+resource "aws_s3_bucket_acl" "puppet_bucket_acl" {
+  bucket = aws_s3_bucket.puppet_bucket.id
+  acl    = "private"
+  depends_on = [aws_s3_bucket.puppet_bucket]
+}
+
 # upload puppet manifests & optional react build via aws_s3_object (you can also upload manually)
-resource "aws_s3_bucket_object" "puppet_site" {
+resource "aws_s3_object" "puppet_site" {
   bucket = aws_s3_bucket.puppet_bucket.id
   key    = "puppet/manifests/site.pp"
   source = "${path.module}/../puppet/manifests/site.pp"
@@ -172,6 +190,8 @@ resource "aws_s3_bucket_object" "puppet_site" {
 }
 
 # ---------- Key pair (we expect key already in AWS) ----------
+# Note: If key pair doesn't exist, create it in AWS EC2 console first
+# Make sure the key pair exists in the same region as specified in aws_region
 data "aws_key_pair" "kp" {
   key_name = var.key_name
 }
@@ -179,7 +199,7 @@ data "aws_key_pair" "kp" {
 # ---------- EC2 instances ----------
 # Nagios server
 resource "aws_instance" "nagios" {
-  ami                         = data.aws_ami.ubuntu.id
+  ami                         = local.ami_id
   instance_type               = var.instance_type_nagios
   subnet_id                   = aws_subnet.public.id
   vpc_security_group_ids      = [aws_security_group.nagios_sg.id]
@@ -189,13 +209,16 @@ resource "aws_instance" "nagios" {
 
   tags = { Name = "nagios-server" }
 
-  user_data = file("${path.module}/userdata/nagios_userdata.sh")
+  user_data = templatefile("${path.module}/userdata/nagios_userdata.sh", {
+    s3_bucket = aws_s3_bucket.puppet_bucket.bucket,
+    aws_region = var.aws_region
+  })
 }
 
 # App server (example: count=1, scale by adjusting count)
 resource "aws_instance" "app" {
   count                       = 1
-  ami                         = data.aws_ami.ubuntu.id
+  ami                         = local.ami_id
   instance_type               = var.instance_type_app
   subnet_id                   = aws_subnet.public.id
   vpc_security_group_ids      = [aws_security_group.app_sg.id]
@@ -206,20 +229,11 @@ resource "aws_instance" "app" {
   tags = { Name = "app-server-${count.index}" }
 
   user_data = templatefile("${path.module}/userdata/app_userdata.sh", {
-    s3_bucket = aws_s3_bucket.puppet_bucket.bucket,
-    s3_prefix = var.react_s3_prefix
+    s3_bucket        = aws_s3_bucket.puppet_bucket.bucket,
+    s3_prefix        = var.react_s3_prefix,
+    nagios_server_ip = aws_instance.nagios.private_ip,
+    aws_region       = var.aws_region
   })
 }
 
-# ---------- outputs ----------
-output "nagios_public_ip" {
-  value = aws_instance.nagios.public_ip
-}
-
-output "app_public_ips" {
-  value = [for i in aws_instance.app : i.public_ip]
-}
-
-output "s3_bucket" {
-  value = aws_s3_bucket.puppet_bucket.bucket
-}
+# ---------- outputs are defined in outputs.tf ----------

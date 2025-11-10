@@ -1,4 +1,6 @@
-class nagios_server {
+class nagios_server (
+  String $app_server_ip = '10.0.1.100',  # Default or pass via fact/hiera
+) {
   package { ['nagios4','nagios-plugins','monitoring-plugins-basic','nagios-nrpe-plugin']:
     ensure => installed,
   }
@@ -11,7 +13,7 @@ class nagios_server {
 
   file { '/etc/nagios/conf.d/hosts.cfg':
     ensure  => file,
-    content => template('nagios/hosts.cfg.erb'), # we will supply one inline later
+    content => template('nagios/hosts.cfg.erb'),
     notify  => Service['nagios'],
   }
 

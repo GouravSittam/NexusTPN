@@ -1,4 +1,6 @@
-class nagios_client {
+class nagios_client (
+  String $nagios_server_ip = '10.0.1.10',  # Default or pass via fact/hiera
+) {
   package { ['nagios-nrpe-server','nagios-plugins']:
     ensure => installed,
   }
