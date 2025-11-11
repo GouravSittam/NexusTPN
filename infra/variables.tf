@@ -10,9 +10,9 @@ variable "key_name" {
 }
 
 variable "public_key_path" {
-  description = "Path to your public key (for import if needed)"
+  description = "Absolute path to your public key (for import if needed). Leave empty to skip importing. Use an absolute Windows path like C:\\Users\\You\\id_rsa.pub; do NOT point to a private key file."
   type        = string
-  default     = "~/.ssh/id_rsa.pub"
+  default     = ""
 }
 
 variable "instance_type" {

@@ -7,6 +7,17 @@
   differently (see notes).
 */
 
+/*
+  Import a public key into AWS as a Key Pair when the user provides an
+  absolute path via `public_key_path` and a `key_name`. This is conditional
+  so existing workflows that manage keys outside Terraform are still supported.
+*/
+resource "aws_key_pair" "imported" {
+  count      = var.public_key_path != "" && var.key_name != "" ? 1 : 0
+  key_name   = var.key_name
+  public_key = file(var.public_key_path)
+}
+
 resource "aws_security_group" "common_sg" {
   name        = "common-sg"
   description = "Allow SSH, HTTP (nagios), Puppet (8140) between hosts"
