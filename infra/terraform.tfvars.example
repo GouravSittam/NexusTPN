@@ -1,0 +1,9 @@
+# Example terraform.tfvars (safe to commit). Copy to terraform.tfvars and fill in real values.
+aws_region = "us-east-1"
+ami = "ami-0c398cb65a93047f2"
+key_name = "INT333.pem"
+public_key_path = "~/.ssh/id_rsa.pub"
+
+# Do NOT put real credentials here. Use terraform.tfvars locally (ignored) or environment variables.
+#aws_access_key = "REPLACE_WITH_YOUR_ACCESS_KEY"
+#aws_secret_key = "REPLACE_WITH_YOUR_SECRET_KEY"
