@@ -1,0 +1,21 @@
+# AWS Configuration
+# Copy this file to terraform.tfvars and fill in your values
+# terraform.tfvars is gitignored to protect sensitive data
+
+# AWS Region
+aws_region = "us-east-1"
+
+# AWS Credentials (optional - can use environment variables instead)
+# Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY environment variables
+# Or use AWS credentials file at ~/.aws/credentials
+aws_access_key_id     = ""
+aws_secret_access_key = ""
+
+# EC2 Configuration
+instance_type        = "t3.small"  # For app and nagios nodes
+puppet_instance_type = "t3.medium" # Puppet Server needs more resources
+ami_id               = "ami-0c398cb65a93047f2"
+
+# Key Pair
+key_name = "projectkey"
+

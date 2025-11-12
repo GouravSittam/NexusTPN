@@ -1,6 +1,0 @@
-# Ignore local terraform variable file containing secrets
-terraform.tfvars
-
-# State files (if any) — be careful with these as well
-*.tfstate
-*.tfstate.backup
